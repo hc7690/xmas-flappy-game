@@ -33,12 +33,11 @@
       color:white;
     }
 
-    /* canvas responsive: logic 400x600, skala di layar */
     #canvas-wrapper{
       width:100%;
       max-width:420px;
       margin:0 auto;
-      padding-top:60px;
+      padding-top:80px;
       padding-bottom:60px;
     }
     canvas {
@@ -56,7 +55,7 @@
       z-index:10;
       display:flex;
       flex-direction:column;
-      gap:6px;
+      gap:4px;
     }
 
     #top-buttons {
@@ -80,13 +79,43 @@
       z-index:12;
     }
 
-    /* tombol submit di tengah atas */
-    #submit-box {
+    /* box username kecil */
+    #username-box {
       position:fixed;
-      top:55px;
-      left:50%;
-      transform:translateX(-50%);
+      top:60px;
+      left:10px;
       z-index:11;
+      display:flex;
+      gap:4px;
+      align-items:center;
+    }
+    #username-input {
+      padding:4px 8px;
+      font-size:11px;
+      border-radius:999px;
+      border:none;
+      outline:none;
+      max-width:110px;
+    }
+    #save-username {
+      padding:5px 8px;
+      font-size:11px;
+      border-radius:999px;
+      border:none;
+      background:#16a34a;
+      color:white;
+      cursor:pointer;
+    }
+
+    /* tombol game over (Submit & Restart) */
+    #gameover-buttons {
+      position:fixed;
+      top:60%;
+      left:50%;
+      transform:translate(-50%, -50%);
+      z-index:12;
+      display:none;
+      gap:10px;
     }
 
     button {
@@ -117,7 +146,7 @@
     }
 
     @media (min-width:768px){
-      #canvas-wrapper{ padding-top:80px; padding-bottom:80px; }
+      #canvas-wrapper{ padding-top:90px; padding-bottom:80px; }
       button{ font-size:15px; }
     }
   </style>
@@ -129,12 +158,20 @@
     <h3>Best: <span id="best">0</span></h3>
   </div>
 
+  <!-- username mini box -->
+  <div id="username-box">
+    <input id="username-input" placeholder="username" maxlength="20" />
+    <button id="save-username">Save</button>
+  </div>
+
   <div id="top-buttons">
     <button id="toggle-lb">Top 10 Flyers</button>
   </div>
 
-  <div id="submit-box">
-    <button id="submit-score" style="display:none;">Save Score On-Chain</button>
+  <!-- tombol ketika idle / game over -->
+  <div id="gameover-buttons">
+    <button id="submit-score">Submit Score</button>
+    <button id="restart-game">Start</button>
   </div>
 
   <div id="canvas-wrapper">
@@ -151,9 +188,17 @@
   </div>
 
   <script type="module">
-    const CONTRACT_ADDRESS = "0xCA1B72f663E1303d75aB1f8edbc2A6eeF3026347";
+    // >>>>>>> GANTI DENGAN ADDRESS KONTRAK V2 BARU <<<<<<
+    const CONTRACT_ADDRESS = "0x6898dEFe759d6ff77c5dD95Adf71b35E5a7ed89f";
 
     const ABI = [
+      {
+        inputs:[{ internalType:"string", name:"name", type:"string" }],
+        name:"setUsername",
+        outputs:[],
+        stateMutability:"nonpayable",
+        type:"function"
+      },
       {
         inputs:[{ internalType:"uint256", name:"_score", type:"uint256" }],
         name:"submitScore",
@@ -168,7 +213,8 @@
           components:[
             { internalType:"address", name:"player", type:"address" },
             { internalType:"uint256", name:"score", type:"uint256" },
-            { internalType:"uint256", name:"timestamp", type:"uint256" }
+            { internalType:"uint256", name:"timestamp", type:"uint256" },
+            { internalType:"string",  name:"username", type:"string" }
           ],
           internalType:"struct XmasFlappyLeaderboard.Player[]",
           name:"",
@@ -183,17 +229,32 @@
         outputs:[{ internalType:"uint256", name:"", type:"uint256" }],
         stateMutability:"view",
         type:"function"
+      },
+      {
+        inputs:[{ internalType:"address", name:"player", type:"address" }],
+        name:"getUsername",
+        outputs:[{ internalType:"string", name:"", type:"string" }],
+        stateMutability:"view",
+        type:"function"
       }
     ];
 
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
+
+    const gameoverButtons = document.getElementById("gameover-buttons");
     const submitBtn = document.getElementById("submit-score");
+    const restartBtn = document.getElementById("restart-game");
+
+    const usernameInput = document.getElementById("username-input");
+    const saveUsernameBtn = document.getElementById("save-username");
+
+    // ======= GAME STATE =======
+    let state = "idle"; // idle, countdown, playing, gameover
+    let countdown = 0;  // dalam detik
 
     let score = 0;
     let best = 0;
-    let gameOver = true;
-    let started = false;
 
     let bird = { x: 110, y: 300, vy: 0 };
     let pipes = [];
@@ -203,6 +264,9 @@
     let playerBest = 0;    // best score on-chain
     let walletClient, publicClient, account;
     let walletConnected = false;
+
+    let username = localStorage.getItem("xmas_username") || "";
+    if (username) usernameInput.value = username;
 
     const somnia = {
       id: 5031n,
@@ -214,22 +278,21 @@
       },
     };
 
-    // === GAME SPEED TUNING (diperlambat) ===
     const PIPE_SPEED = 1.0;
     const GRAVITY = 0.28;
     const FLAP_POWER = -7.8;
     const PIPE_GAP = 210;
     const PIPE_INTERVAL = 150;
 
-    // ==== ASSETS: IMAGE + SOUND ====
-
-    // Santa image (santa.png di folder yang sama)
+    // ==== IMAGE & SOUND ====
     const santaImg = new Image();
     santaImg.src = "santa.png";
     let santaLoaded = false;
     santaImg.onload = () => { santaLoaded = true; };
 
-    // Audio (pastikan file ada, kalau nggak cuma silent)
+    const SANTA_WIDTH = 80;
+    const SANTA_HEIGHT = 60;
+
     let bgMusic, flapSound, hitSound, scoreSound;
     let musicStarted = false;
 
@@ -252,7 +315,7 @@
 
     function playSafe(audioObj){
       if (!audioObj) return;
-      const a = audioObj.cloneNode(); // biar bisa overlap
+      const a = audioObj.cloneNode();
       a.volume = audioObj.volume;
       a.play().catch(()=>{});
     }
@@ -260,16 +323,14 @@
     function startMusicOnce(){
       if (musicStarted || !bgMusic) return;
       musicStarted = true;
-      bgMusic.play().catch(()=>{ /* user bisa trigger lagi */ });
+      bgMusic.play().catch(()=>{});
     }
 
-    // ===== DRAWING FUNCTIONS =====
+    // ===== DRAWING =====
 
-    // fallback vector sleigh (kalau gambar belum load)
     function drawSantaVector(x, y) {
       ctx.save();
       ctx.translate(x, y);
-
       ctx.fillStyle = "#B22222";
       ctx.beginPath();
       ctx.moveTo(-30, 15);
@@ -278,17 +339,14 @@
       ctx.lineTo(-24, 5);
       ctx.closePath();
       ctx.fill();
-
       ctx.fillStyle = "#8B0000";
       ctx.fillRect(-26, 5, 8, 10);
-
       ctx.strokeStyle = "#FFD700";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(-30, 15);
       ctx.lineTo(20, 15);
       ctx.stroke();
-
       ctx.strokeStyle = "#C0C0C0";
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -296,15 +354,12 @@
       ctx.quadraticCurveTo(-20, 24, -10, 22);
       ctx.quadraticCurveTo(5, 20, 22, 24);
       ctx.stroke();
-
       ctx.fillStyle = "#FF0000";
       ctx.fillRect(-8, -10, 16, 18);
-
       ctx.fillStyle = "#FCD7B6";
       ctx.beginPath();
       ctx.arc(0, -16, 7, 0, Math.PI * 2);
       ctx.fill();
-
       ctx.fillStyle = "#FF0000";
       ctx.beginPath();
       ctx.moveTo(-7, -19);
@@ -319,32 +374,26 @@
       ctx.beginPath();
       ctx.arc(0, -20, 7.5, Math.PI, 0);
       ctx.fill();
-
       ctx.beginPath();
       ctx.moveTo(-5, -12);
       ctx.quadraticCurveTo(0, -6, 5, -12);
       ctx.quadraticCurveTo(0, -3, -5, -12);
       ctx.fill();
-
       ctx.fillStyle = "#006400";
       ctx.beginPath();
       ctx.ellipse(-20, -2, 10, 14, 0, 0, Math.PI * 2);
       ctx.fill();
-
       ctx.restore();
     }
 
     function drawSantaImg(x, y) {
       if (santaLoaded) {
-        const targetWidth = 80; // lebar tampilan Santa
-        const ratio = santaImg.height / santaImg.width;
-        const targetHeight = targetWidth * ratio;
         ctx.drawImage(
           santaImg,
-          x - targetWidth / 2,
-          y - targetHeight / 2,
-          targetWidth,
-          targetHeight
+          x - SANTA_WIDTH / 2,
+          y - SANTA_HEIGHT / 2,
+          SANTA_WIDTH,
+          SANTA_HEIGHT
         );
       } else {
         drawSantaVector(x, y);
@@ -354,12 +403,10 @@
     function drawCandyPipe(x, y, w, h) {
       ctx.fillStyle = "#228B22";
       ctx.fillRect(x, y, w, h);
-
       ctx.fillStyle = "#DC143C";
       for (let i = 0; i < h; i += 26) {
         ctx.fillRect(x, y + i, w, 13);
       }
-
       ctx.strokeStyle = "white";
       ctx.lineWidth = 5;
       ctx.lineCap = "round";
@@ -377,7 +424,6 @@
       grad.addColorStop(1, "#082f49");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, 400, 600);
-
       ctx.fillStyle = "#fff";
       for (let i = 0; i < 40; i++) {
         ctx.fillRect((i * 137.5) % 400, (i * 61) % 400, 2, 2);
@@ -393,8 +439,8 @@
       ctx.fillText("Xmas Flappy Santa", 200, 220);
       ctx.fillStyle = "white";
       ctx.font = "20px Arial";
-      ctx.fillText("Connect wallet to play!", 200, 280);
-      ctx.fillText("Tap / Space to fly", 200, 315);
+      ctx.fillText("Connect wallet & set name", 200, 280);
+      ctx.fillText("Press Start to play", 200, 315);
     }
 
     function drawGameOver() {
@@ -409,17 +455,28 @@
       ctx.fillText(`Score: ${score}`, 200, 240);
       ctx.fillText(`Best: ${best}`, 200, 275);
       ctx.font = "18px Arial";
-      ctx.fillText("Tap/Space = Restart", 200, 320);
-      ctx.fillText("Use 'Save Score' to record", 200, 350);
+      ctx.fillText("Use 'Submit Score' to record", 200, 320);
+      ctx.fillText("'Restart' to play again", 200, 350);
     }
 
-    // ===== GAME LOOP =====
+    function drawCountdown() {
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fillRect(0, 0, 400, 600);
+      ctx.fillStyle = "#FFD700";
+      ctx.font = "bold 64px Arial";
+      ctx.textAlign = "center";
+      const n = Math.ceil(countdown);
+      ctx.fillText(n.toString(), 200, 260);
+    }
+
+    // ======= GAME LOOP =======
     function gameLoop() {
       ctx.clearRect(0, 0, 400, 600);
       frame++;
 
       drawBackground();
 
+      // snow
       if (frame % 2 === 0) {
         snowflakes.push({
           x: Math.random() * 400,
@@ -428,13 +485,11 @@
           vy: Math.random() * 0.4 + 0.4,
         });
       }
-
       snowflakes = snowflakes.filter((s) => {
         s.y += s.vy;
         s.x += Math.sin(frame * 0.01 + s.y) * 0.3;
         return s.y < 610;
       });
-
       snowflakes.forEach((s) => {
         ctx.fillStyle = "white";
         ctx.beginPath();
@@ -442,32 +497,62 @@
         ctx.fill();
       });
 
-      if (!started) {
+      // STATE HANDLING
+      if (state === "idle") {
         drawStart();
+        drawSantaImg(bird.x, bird.y);
+
+        // tombol: hanya Restart (label Start), submit disembunyiin
+        gameoverButtons.style.display = "flex";
         submitBtn.style.display = "none";
+        restartBtn.textContent = "Start";
+
         requestAnimationFrame(gameLoop);
         return;
       }
 
-      if (gameOver) {
+      if (state === "countdown") {
+        drawSantaImg(bird.x, bird.y);
+
+        gameoverButtons.style.display = "none";
+
+        drawCountdown();
+        countdown -= 1/60; // kira2 60 fps
+
+        if (countdown <= 0) {
+          state = "playing";
+        }
+
+        requestAnimationFrame(gameLoop);
+        return;
+      }
+
+      if (state === "gameover") {
         drawGameOver();
+        drawSantaImg(bird.x, bird.y);
+
+        gameoverButtons.style.display = "flex";
+        restartBtn.textContent = "Restart";
+        // submit hanya muncul kalau bisa submit
         if (walletConnected && score > playerBest) {
           submitBtn.style.display = "inline-block";
         } else {
           submitBtn.style.display = "none";
         }
+
         requestAnimationFrame(gameLoop);
         return;
       }
 
-      submitBtn.style.display = "none";
+      // ==== PLAYING ====
+      gameoverButtons.style.display = "none";
 
       bird.vy *= 0.96;
       bird.vy += GRAVITY;
       bird.y += bird.vy;
 
       if (bird.y < 15 || bird.y > 570) {
-        gameOver = true;
+        state = "gameover";
         playSafe(hitSound);
       }
 
@@ -500,7 +585,7 @@
           bird.x + 40 > p.x &&
           (bird.y - 30 < p.top || bird.y + 30 > p.top + PIPE_GAP)
         ) {
-          gameOver = true;
+          state = "gameover";
           playSafe(hitSound);
         }
 
@@ -518,33 +603,30 @@
       requestAnimationFrame(gameLoop);
     }
 
-    function flap() {
+    // ====== START / RESTART ======
+    function startOrRestart() {
       if (!walletConnected) {
-        alert("Please connect your Somnia wallet first to play.");
+        alert("Please connect your Somnia wallet first.");
         return;
       }
 
-      // mulai musik pada interaksi pertama
       startMusicOnce();
 
-      if (!started) {
-        started = true;
-        gameOver = false;
-        return;
-      }
+      // reset state game
+      bird.y = 300;
+      bird.vy = 0;
+      pipes = [];
+      snowflakes = [];
+      score = 0;
+      document.getElementById("score").textContent = "0";
 
-      if (gameOver) {
-        bird.y = 300;
-        bird.vy = 0;
-        score = 0;
-        pipes = [];
-        snowflakes = [];
-        document.getElementById("score").textContent = "0";
-        gameOver = false;
-        submitBtn.style.display = "none";
-        return;
-      }
+      countdown = 3; // detik
+      state = "countdown";
+    }
 
+    // ===== FLAP (hanya saat playing) =====
+    function flap() {
+      if (state !== "playing") return;
       bird.vy = FLAP_POWER;
       playSafe(flapSound);
     }
@@ -557,6 +639,9 @@
       }
     });
 
+    restartBtn.onclick = startOrRestart;
+
+    // ===== WALLET & USERNAME =====
     document.getElementById("toggle-lb").onclick = () => {
       const box = document.getElementById("leaderboard");
       const willShow =
@@ -592,6 +677,7 @@
           document.getElementById("connect").textContent =
             `${account.slice(0, 6)}...${account.slice(-4)}`;
 
+          // best score
           playerBest = Number(
             await publicClient.readContract({
               address: CONTRACT_ADDRESS,
@@ -600,9 +686,22 @@
               args: [account],
             })
           );
-
           best = Math.max(best, playerBest);
           document.getElementById("best").textContent = best;
+
+          // username on-chain
+          const onChainName = await publicClient.readContract({
+            address: CONTRACT_ADDRESS,
+            abi: ABI,
+            functionName: "getUsername",
+            args: [account],
+          });
+
+          if (onChainName && onChainName.length > 0) {
+            username = onChainName;
+            usernameInput.value = username;
+            localStorage.setItem("xmas_username", username);
+          }
         } else {
           alert("Wallet connect gagal");
         }
@@ -611,6 +710,110 @@
         alert(`Connect error: ${e.message}`);
       }
     };
+
+    saveUsernameBtn.onclick = async () => {
+      const name = usernameInput.value.trim();
+      if (!walletConnected) {
+        alert("Connect wallet dulu.");
+        return;
+      }
+      if (!name) {
+        alert("Username tidak boleh kosong.");
+        return;
+      }
+      if (name.length > 20) {
+        alert("Max 20 karakter.");
+        return;
+      }
+
+      try {
+        username = name;
+        localStorage.setItem("xmas_username", username);
+
+        const { encodeFunctionData } = window.viem;
+        const data = encodeFunctionData({
+          abi: ABI,
+          functionName: "setUsername",
+          args: [username],
+        });
+
+        const txHash = await window.ethereum.request({
+          method: "eth_sendTransaction",
+          params: [
+            {
+              from: account,
+              to: CONTRACT_ADDRESS,
+              data,
+            },
+          ],
+        });
+
+        alert(`Username saved: ${username}\nTx: ${txHash.slice(0,12)}...`);
+      } catch (e) {
+        console.error(e);
+        alert(`Set username gagal: ${e.message}`);
+      }
+    };
+
+    async function ensureUsernameOnChain() {
+      if (!walletConnected || !window.ethereum) {
+        alert("Wallet not connected.");
+        return false;
+      }
+
+      let name = usernameInput.value.trim() || username;
+      if (!name) {
+        name = prompt("Enter username (max 20 chars):") || "";
+        name = name.trim();
+        if (!name) return false;
+        if (name.length > 20) {
+          alert("Max 20 karakter.");
+          return false;
+        }
+        usernameInput.value = name;
+      }
+
+      username = name;
+      localStorage.setItem("xmas_username", username);
+
+      try {
+        const onChainName = await publicClient.readContract({
+          address: CONTRACT_ADDRESS,
+          abi: ABI,
+          functionName: "getUsername",
+          args: [account],
+        });
+
+        if (onChainName && onChainName.length > 0 && onChainName === username) {
+          return true;
+        }
+
+        const { encodeFunctionData } = window.viem;
+        const data = encodeFunctionData({
+          abi: ABI,
+          functionName: "setUsername",
+          args: [username],
+        });
+
+        const txHash = await window.ethereum.request({
+          method: "eth_sendTransaction",
+          params: [
+            {
+              from: account,
+              to: CONTRACT_ADDRESS,
+              data,
+            },
+          ],
+        });
+
+        alert(`Username saved: ${username}\nTx: ${txHash.slice(0,12)}...`);
+        return true;
+      } catch (e) {
+        console.error(e);
+        alert(`Set username gagal: ${e.message}`);
+        return false;
+      }
+    }
 
     async function loadLeaderboard() {
       if (!publicClient) return;
@@ -632,10 +835,14 @@
         }
 
         lb.slice(0, 10).forEach((p, i) => {
-          const addr = String(p[0]);
-          const short = addr.slice(0, 6) + "..." + addr.slice(-4);
+          const addr = String(p.player ?? p[0]);
+          const pts = Number(p.score ?? p[1]);
+          const uname = (p.username ?? p[3]) || "";
+          const shortAddr = addr.slice(0, 6) + "..." + addr.slice(-4);
+          const displayName = uname && String(uname).length ? uname : shortAddr;
+
           const li = document.createElement("li");
-          li.textContent = `${i + 1}. ${short} — ${Number(p[1])} pts`;
+          li.textContent = `${i + 1}. ${displayName} — ${pts} pts`;
           list.appendChild(li);
         });
       } catch (e) {
@@ -660,6 +867,9 @@
 
       const ok = confirm(`Submit score ${score} to on-chain leaderboard?`);
       if (!ok) return;
+
+      const okName = await ensureUsernameOnChain();
+      if (!okName) return;
 
       try {
         const { encodeFunctionData } = window.viem;
@@ -693,6 +903,7 @@
 
     submitBtn.onclick = submitScoreToChain;
 
+    // mulai loop
     gameLoop();
   </script>
 </body>
