@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Xmas Flappy Reindeer - Somnia</title>
 
-  <!-- Load viem ke window.viem -->
+  <!-- VIEM ke window.viem -->
   <script type="module">
     import {
       createPublicClient,
@@ -21,29 +21,71 @@
     * { margin:0; padding:0; box-sizing:border-box; }
     body { background:#0a1a3f; overflow:hidden; font-family:Arial, sans-serif; color:white; }
     canvas { display:block; margin:0 auto; }
-    #ui { position:absolute; top:20px; left:20px; z-index:10; }
-    #leaderboard-btn { position:absolute; top:20px; right:20px; }
+
+    #ui {
+      position:absolute;
+      top:20px;
+      left:20px;
+      z-index:10;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    #top-buttons {
+      position:absolute;
+      top:20px;
+      right:20px;
+      z-index:10;
+      display:flex;
+      gap:10px;
+    }
+
     #leaderboard {
       position:absolute;
       top:80px;
       right:20px;
-      background:rgba(0,0,0,0.7);
+      background:rgba(0,0,0,0.85);
       padding:15px;
       border-radius:10px;
       max-width:280px;
       display:none;
+      z-index:12;
     }
+
     button {
-      padding:12px 24px;
-      font-size:16px;
+      padding:10px 16px;
+      font-size:14px;
       background:#c41e3a;
       color:white;
       border:none;
       border-radius:8px;
       cursor:pointer;
+      white-space:nowrap;
     }
-    h2,h3 { margin:10px 0; }
-    ol { font-size:14px; }
+
+    h2,h3 { margin:0; }
+    ol { font-size:13px; padding-left:18px; margin:8px 0 0; }
+
+    #copyright {
+      position:fixed;
+      bottom:8px;
+      left:50%;
+      transform:translateX(-50%);
+      font-size:11px;
+      color:#ccc;
+      background:rgba(0,0,0,0.5);
+      padding:4px 8px;
+      border-radius:6px;
+      z-index:5;
+    }
+
+    @media (max-width:480px){
+      #ui { left:10px; top:10px; }
+      #top-buttons { right:10px; top:10px; }
+      #leaderboard { right:10px; top:65px; max-width:260px; }
+      #copyright { font-size:10px; bottom:4px; }
+    }
   </style>
 </head>
 <body>
@@ -53,7 +95,7 @@
     <h3>Best: <span id="best">0</span></h3>
   </div>
 
-  <div id="leaderboard-btn">
+  <div id="top-buttons">
     <button id="toggle-lb">Top 10 Flyers</button>
   </div>
 
@@ -62,6 +104,10 @@
   <div id="leaderboard">
     <h3>Top 10 Flyers</h3>
     <ol id="lb-list"></ol>
+  </div>
+
+  <div id="copyright">
+    © 2024 Xmas Flappy Reindeer — deployed by @hc7690 (Discord)
   </div>
 
   <script type="module">
@@ -102,18 +148,22 @@
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
 
-    let score = 0,
-        best = 0,
-        gameOver = true,
-        started = false;
+    let score = 0;
+    let best = 0;          // best di UI (local atau on-chain)
+    let gameOver = true;
+    let started = false;
+
     let bird = { x: 100, y: 300, vy: 0 };
     let pipes = [];
     let snowflakes = [];
     let frame = 0;
-    let playerBest = 0;
-    let walletClient, publicClient, account;
 
-    // Somnia mainnet config
+    let playerBest = 0;    // best dari on-chain
+    let walletClient, publicClient, account;
+    let walletConnected = false;
+    let prevGameOver = true;   // buat deteksi transisi game over
+
+    // Somnia mainnet
     const somnia = {
       id: 5031n,
       name: "Somnia Mainnet",
@@ -124,7 +174,7 @@
       },
     };
 
-    // --- GAME TUNING ---
+    // --- GAME PARAM ---
     const PIPE_SPEED = 1.5;
     const GRAVITY = 0.35;
     const FLAP_POWER = -8.5;
@@ -227,8 +277,8 @@
       ctx.fillText("Reindeer", 200, 260);
       ctx.fillStyle = "white";
       ctx.font = "20px Arial";
-      ctx.fillText("Click/Space to Fly!", 200, 320);
-      ctx.fillText("Dodge Candy Canes!", 200, 355);
+      ctx.fillText("Connect wallet to play!", 200, 320);
+      ctx.fillText("Click/Space after connect", 200, 355);
     }
 
     function drawGameOver() {
@@ -246,7 +296,6 @@
       ctx.fillText("Click/Space Restart", 200, 330);
     }
 
-    // Game loop
     function gameLoop() {
       ctx.clearRect(0, 0, 400, 600);
       frame++;
@@ -277,12 +326,20 @@
 
       if (!started) {
         drawStart();
+        prevGameOver = gameOver;
         requestAnimationFrame(gameLoop);
         return;
       }
 
       if (gameOver) {
         drawGameOver();
+
+        // transisi baru ke gameOver -> submit score kalau perlu
+        if (!prevGameOver && walletConnected && score > playerBest) {
+          submitScoreToChain();
+        }
+
+        prevGameOver = gameOver;
         requestAnimationFrame(gameLoop);
         return;
       }
@@ -335,23 +392,35 @@
         document.getElementById("best").textContent = best;
       }
 
+      prevGameOver = gameOver;
       requestAnimationFrame(gameLoop);
     }
 
     function flap() {
+      // WAJIB connect wallet dulu
+      if (!walletConnected) {
+        alert("Please connect your Somnia wallet first to play.");
+        return;
+      }
+
       if (!started) {
         started = true;
-      } else if (gameOver) {
+        gameOver = false;
+        return;
+      }
+
+      if (gameOver) {
         bird.y = 300;
         bird.vy = 0;
         score = 0;
         pipes = [];
         snowflakes = [];
         document.getElementById("score").textContent = "0";
-      } else {
-        bird.vy = FLAP_POWER;
+        gameOver = false;
+        return;
       }
-      gameOver = false;
+
+      bird.vy = FLAP_POWER;
     }
 
     canvas.addEventListener("click", flap);
@@ -362,12 +431,13 @@
       }
     });
 
-    // Toggle leaderboard box
+    // Toggle leaderboard
     document.getElementById("toggle-lb").onclick = () => {
-      const el = document.getElementById("leaderboard");
-      el.style.display = el.style.display === "none" || el.style.display === ""
-        ? "block"
-        : "none";
+      const box = document.getElementById("leaderboard");
+      const willShow =
+        box.style.display === "none" || box.style.display === "";
+      box.style.display = willShow ? "block" : "none";
+      if (willShow) loadLeaderboard();
     };
 
     // --- CONNECT WALLET ---
@@ -383,25 +453,23 @@
           transport: custom(window.ethereum),
         });
 
-        // Switch ke Somnia mainnet
+        // switch ke Somnia mainnet
         await walletClient.switchChain({ id: 5031n });
 
         [account] = await walletClient.requestAddresses();
 
-        // Pakai RPC Somnia mainnet
         publicClient = createPublicClient({
           chain: somnia,
           transport: http(somnia.rpcUrls.default.http[0]),
         });
 
         if (account && account.length > 10) {
-          // Tampilkan short address di tombol
+          walletConnected = true;
+
           document.getElementById("connect").textContent =
             `${account.slice(0, 6)}...${account.slice(-4)}`;
 
-          document.getElementById("leaderboard").style.display = "block";
-
-          // Ambil best score player
+          // ambil best on-chain player ini
           playerBest = Number(
             await publicClient.readContract({
               address: CONTRACT_ADDRESS,
@@ -411,7 +479,8 @@
             })
           );
 
-          loadLeaderboard();
+          best = Math.max(best, playerBest);
+          document.getElementById("best").textContent = best;
         } else {
           alert("Wallet connect gagal");
         }
@@ -433,19 +502,34 @@
         const list = document.getElementById("lb-list");
         list.innerHTML = "";
 
+        if (!lb || lb.length === 0) {
+          const li = document.createElement("li");
+          li.textContent = "No scores on chain yet.";
+          list.appendChild(li);
+          return;
+        }
+
         lb.slice(0, 10).forEach((p, i) => {
-          const short = p[0].slice(0, 6) + "..." + p[0].slice(-4);
+          const addr = String(p[0]);
+          const short = addr.slice(0, 6) + "..." + addr.slice(-4);
           const li = document.createElement("li");
           li.textContent = `${i + 1}. ${short} — ${Number(p[1])} pts`;
           list.appendChild(li);
         });
       } catch (e) {
         console.error("loadLeaderboard error", e);
+        const list = document.getElementById("lb-list");
+        list.innerHTML = "";
+        const li = document.createElement("li");
+        li.textContent = "Failed to load leaderboard.";
+        list.appendChild(li);
       }
     }
 
     async function submitScoreToChain() {
-      if (!walletClient || score <= playerBest) return;
+      if (!walletClient) return;
+      if (score <= playerBest) return;
+
       try {
         const hash = await walletClient.writeContract({
           address: CONTRACT_ADDRESS,
@@ -456,6 +540,8 @@
 
         alert(`Score ${score} submitted! Tx: ${hash.slice(0, 12)}...`);
         playerBest = score;
+        best = Math.max(best, playerBest);
+        document.getElementById("best").textContent = best;
         loadLeaderboard();
       } catch (e) {
         console.error(e);
@@ -463,16 +549,7 @@
       }
     }
 
-    // Auto submit ketika game over & score > best player
-    const originalDrawGameOver = drawGameOver;
-    drawGameOver = function () {
-      originalDrawGameOver();
-      if (score > playerBest && walletClient) {
-        setTimeout(submitScoreToChain, 500);
-      }
-    };
-
-    // Mulai loop
+    // start loop
     gameLoop();
   </script>
 </body>
