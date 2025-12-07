@@ -81,31 +81,29 @@
 
     /* box username kecil */
     #username-box {
-      position:fixed;
-      top:60px;
-      left:10px;
-      z-index:11;
-      display:flex;
-      gap:4px;
-      align-items:center;
-    }
-    #username-input {
-      padding:4px 8px;
-      font-size:11px;
-      border-radius:999px;
-      border:none;
-      outline:none;
-      max-width:110px;
-    }
-    #save-username {
-      padding:5px 8px;
-      font-size:11px;
-      border-radius:999px;
-      border:none;
-      background:#16a34a;
-      color:white;
-      cursor:pointer;
-    }
+  position:static;          /* ikut layout di dalam #ui */
+  display:flex;
+  gap:4px;
+  align-items:center;
+  margin-top:4px;           /* jarak sedikit dari Best */
+}
+#username-input {
+  padding:4px 8px;
+  font-size:11px;
+  border-radius:999px;
+  border:none;
+  outline:none;
+  max-width:120px;
+}
+#save-username {
+  padding:5px 8px;
+  font-size:11px;
+  border-radius:999px;
+  border:none;
+  background:#16a34a;
+  color:white;
+  cursor:pointer;
+}
 
     /* tombol game over (Submit & Restart) */
     #gameover-buttons {
@@ -153,16 +151,16 @@
 </head>
 <body>
   <div id="ui">
-    <button id="connect">Connect Wallet</button>
-    <h2>Score: <span id="score">0</span></h2>
-    <h3>Best: <span id="best">0</span></h3>
-  </div>
+  <button id="connect">Connect Wallet</button>
+  <h2>Score: <span id="score">0</span></h2>
+  <h3>Best: <span id="best">0</span></h3>
 
-  <!-- username mini box -->
+  <!-- username mini box (sekarang di dalam #ui) -->
   <div id="username-box">
     <input id="username-input" placeholder="username" maxlength="20" />
     <button id="save-username">Save</button>
   </div>
+</div>
 
   <div id="top-buttons">
     <button id="toggle-lb">Top 10 Flyers</button>
