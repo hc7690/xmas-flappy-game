@@ -107,14 +107,14 @@
 
     /* tombol game over (Submit & Restart) */
     #gameover-buttons {
-      position:fixed;
-      top:60%;
-      left:50%;
-      transform:translate(-50%, -50%);
-      z-index:12;
-      display:none;
-      gap:10px;
-    }
+  position:fixed;
+  bottom:18%;              /* tombol nempel di bawah modal, bukan di tengah */
+  left:50%;
+  transform:translateX(-50%);
+  z-index:12;
+  display:none;
+  gap:10px;
+}
 
     button {
       padding:8px 14px;
@@ -498,7 +498,7 @@
       // STATE HANDLING
       if (state === "idle") {
         drawStart();
-        drawSantaImg(bird.x, bird.y);
+        // drawSantaImg(bird.x, bird.y);
 
         // tombol: hanya Restart (label Start), submit disembunyiin
         gameoverButtons.style.display = "flex";
@@ -527,7 +527,7 @@
 
       if (state === "gameover") {
         drawGameOver();
-        drawSantaImg(bird.x, bird.y);
+        // drawSantaImg(bird.x, bird.y);
 
         gameoverButtons.style.display = "flex";
         restartBtn.textContent = "Restart";
