@@ -12,9 +12,16 @@
       createWalletClient,
       custom,
       http,
+      encodeFunctionData,
     } from "https://cdn.jsdelivr.net/npm/viem@2.0.0/+esm";
 
-    window.viem = { createPublicClient, createWalletClient, custom, http };
+    window.viem = {
+      createPublicClient,
+      createWalletClient,
+      custom,
+      http,
+      encodeFunctionData,
+    };
   </script>
 
   <style>
@@ -53,10 +60,12 @@
       z-index:12;
     }
 
+    /* tombol submit di tengah atas biar pasti kelihatan */
     #submit-box {
       position:absolute;
       top:70px;
-      left:20px;
+      left:50%;
+      transform:translateX(-50%);
       z-index:11;
     }
 
@@ -91,7 +100,7 @@
       #ui { left:10px; top:10px; }
       #top-buttons { right:10px; top:10px; }
       #leaderboard { right:10px; top:65px; max-width:260px; }
-      #submit-box { top:65px; left:10px; }
+      #submit-box { top:65px; }
       #copyright { font-size:10px; bottom:4px; }
     }
   </style>
@@ -160,7 +169,6 @@
 
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
-
     const submitBtn = document.getElementById("submit-score");
 
     let score = 0;
@@ -177,7 +185,6 @@
     let walletClient, publicClient, account;
     let walletConnected = false;
 
-    // Somnia mainnet
     const somnia = {
       id: 5031n,
       name: "Somnia Mainnet",
@@ -188,7 +195,6 @@
       },
     };
 
-    // --- GAME PARAM ---
     const PIPE_SPEED = 1.5;
     const GRAVITY = 0.35;
     const FLAP_POWER = -8.5;
@@ -348,7 +354,7 @@
       if (gameOver) {
         drawGameOver();
 
-        // show/hide tombol submit
+        // tampilkan tombol submit kalau syarat terpenuhi
         if (walletConnected && score > playerBest) {
           submitBtn.style.display = "inline-block";
         } else {
@@ -359,7 +365,6 @@
         return;
       }
 
-      // hide tombol saat permainan berjalan
       submitBtn.style.display = "none";
 
       bird.vy *= 0.95;
@@ -448,7 +453,6 @@
       }
     });
 
-    // Toggle leaderboard
     document.getElementById("toggle-lb").onclick = () => {
       const box = document.getElementById("leaderboard");
       const willShow =
@@ -457,7 +461,6 @@
       if (willShow) loadLeaderboard();
     };
 
-    // --- CONNECT WALLET ---
     document.getElementById("connect").onclick = async () => {
       if (!window.viem) return alert("Loading... coba lagi");
       const { createWalletClient, custom, createPublicClient, http } = window.viem;
@@ -470,7 +473,6 @@
           transport: custom(window.ethereum),
         });
 
-        // switch ke Somnia mainnet
         await walletClient.switchChain({ id: 5031n });
 
         [account] = await walletClient.requestAddresses();
@@ -486,7 +488,6 @@
           document.getElementById("connect").textContent =
             `${account.slice(0, 6)}...${account.slice(-4)}`;
 
-          // ambil best on-chain player ini
           playerBest = Number(
             await publicClient.readContract({
               address: CONTRACT_ADDRESS,
@@ -544,7 +545,7 @@
     }
 
     async function submitScoreToChain() {
-      if (!walletClient) {
+      if (!walletConnected || !window.ethereum) {
         alert("Wallet not connected.");
         return;
       }
@@ -557,14 +558,25 @@
       if (!ok) return;
 
       try {
-        const hash = await walletClient.writeContract({
-          address: CONTRACT_ADDRESS,
+        const { encodeFunctionData } = window.viem;
+        const data = encodeFunctionData({
           abi: ABI,
           functionName: "submitScore",
           args: [BigInt(score)],
         });
 
-        alert(`Score ${score} submitted! Tx: ${hash.slice(0, 12)}...`);
+        const txHash = await window.ethereum.request({
+          method: "eth_sendTransaction",
+          params: [
+            {
+              from: account,
+              to: CONTRACT_ADDRESS,
+              data,
+            },
+          ],
+        });
+
+        alert(`Score ${score} submitted! Tx: ${txHash.slice(0, 12)}...`);
         playerBest = score;
         best = Math.max(best, playerBest);
         document.getElementById("best").textContent = best;
@@ -577,7 +589,6 @@
 
     submitBtn.onclick = submitScoreToChain;
 
-    // start loop
     gameLoop();
   </script>
 </body>
