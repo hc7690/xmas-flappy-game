@@ -840,7 +840,7 @@
           const displayName = uname && String(uname).length ? uname : shortAddr;
 
           const li = document.createElement("li");
-          li.textContent = `${i + 1}. ${displayName} — ${pts} pts`;
+          li.textContent = `${displayName} — ${pts} pts`;
           list.appendChild(li);
         });
       } catch (e) {
