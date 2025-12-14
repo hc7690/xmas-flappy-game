@@ -157,9 +157,13 @@
 
   <!-- username mini box (sekarang di dalam #ui) -->
   <div id="username-box">
-    <input id="username-input" placeholder="username" maxlength="20" />
-    <button id="save-username">Save</button>
-  </div>
+  <span id="username-display" style="display:none;font-size:13px;">
+    Username: <b id="username-text"></b>
+  </span>
+
+  <input id="username-input" placeholder="username" maxlength="20" />
+  <button id="save-username">Save</button>
+</div>
 </div>
 
   <div id="top-buttons">
@@ -246,7 +250,15 @@
 
     const usernameInput = document.getElementById("username-input");
     const saveUsernameBtn = document.getElementById("save-username");
+const usernameDisplay = document.getElementById("username-display");
+const usernameText = document.getElementById("username-text");
 
+function lockUsername(name) {
+  usernameText.textContent = name;
+  usernameDisplay.style.display = "inline";
+  usernameInput.style.display = "none";
+  saveUsernameBtn.style.display = "none";
+}
     // ======= GAME STATE =======
     let state = "idle"; // idle, countdown, playing, gameover
     let countdown = 0;  // dalam detik
@@ -264,7 +276,10 @@
     let walletConnected = false;
 
     let username = localStorage.getItem("xmas_username") || "";
-    if (username) usernameInput.value = username;
+if (username) {
+  usernameInput.value = username;
+  lockUsername(username);
+}
 
     const somnia = {
       id: 5031n,
@@ -696,10 +711,10 @@
           });
 
           if (onChainName && onChainName.length > 0) {
-            username = onChainName;
-            usernameInput.value = username;
-            localStorage.setItem("xmas_username", username);
-          }
+  username = onChainName;
+  localStorage.setItem("xmas_username", username);
+  lockUsername(username);
+}
         } else {
           alert("Wallet connect gagal");
         }
@@ -747,6 +762,7 @@
         });
 
         alert(`Username saved: ${username}\nTx: ${txHash.slice(0,12)}...`);
+lockUsername(username);
       } catch (e) {
         console.error(e);
         alert(`Set username gagal: ${e.message}`);
