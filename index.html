@@ -321,6 +321,25 @@ function lockUsername(name) {
   usernameInput.style.display = "none";
   saveUsernameBtn.style.display = "none";
 }
+
+// ===== LOBBY DEFAULT (BELUM CONNECT WALLET) =====
+function setLobbyDisconnected() {
+  document.getElementById("username-box").style.display = "none";
+  document.getElementById("pro-controls").style.display = "none";
+  document.getElementById("toggle-lb").style.display = "none";
+  document.getElementById("leaderboard").style.display = "none";
+}
+
+// panggil sekali di awal
+setLobbyDisconnected();
+
+// ===== LOBBY SETELAH CONNECT WALLET =====
+function setLobbyConnected() {
+  document.getElementById("username-box").style.display = "flex";
+  document.getElementById("pro-controls").style.display = "block";
+  document.getElementById("toggle-lb").style.display = "inline-block";
+}
+
     // ======= GAME STATE =======
     let state = "idle"; // idle, countdown, playing, gameover
     let countdown = 0;  // dalam detik
@@ -817,6 +836,7 @@ if (onChainName && onChainName.length > 0) {
     usernameDisplay.style.display = "none";
   }
 }
+setLobbyConnected();
         } else {
           alert("Wallet connect gagal");
         }
