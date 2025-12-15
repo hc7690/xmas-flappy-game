@@ -301,6 +301,7 @@ function lockUsername(name) {
     let playerBest = 0;    // best score on-chain
     let walletClient, publicClient, account;
     let walletConnected = false;
+    let isProUser = false; // status PRO user
 
     let username = localStorage.getItem("xmas_username") || "";
 if (username) {
@@ -710,6 +711,14 @@ if (username) {
           chain: somnia,
           transport: http(somnia.rpcUrls.default.http[0]),
         });
+// cek PRO status
+isProUser = await publicClient.readContract({
+  address: PRO_CONTRACT,
+  abi: PRO_ABI,
+  functionName: "isPro",
+  args: [account],
+});
+console.log("Is PRO user:", isProUser);
 
         if (account && account.length > 10) {
           walletConnected = true;
