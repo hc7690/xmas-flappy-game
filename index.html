@@ -221,6 +221,11 @@
 
   <script type="module">
 
+// ===== USERNAME STORAGE HELPER (WAJIB PALING ATAS) =====
+function usernameKey(addr) {
+  return `xmas_username_${addr.toLowerCase()}`;
+}
+
 // ===== PRO ACCESS CONTRACT =====
 const PRO_CONTRACT = "0x38Bc7E09B7Fe5eAC88db60997393c5476BE9dEa1";
 
@@ -333,11 +338,7 @@ function lockUsername(name) {
     let walletConnected = false;
     let isProUser = false; // status PRO user
 
-    let username = localStorage.getItem("xmas_username") || "";
-if (username) {
-  usernameInput.value = username;
-  lockUsername(username);
-}
+    let username = "";
 
     const somnia = {
       id: 5031n,
@@ -793,10 +794,23 @@ if (isProUser) {
             args: [account],
           });
 
-          if (onChainName && onChainName.length > 0) {
+          const key = usernameKey(account);
+
+if (onChainName && onChainName.length > 0) {
   username = onChainName;
-  localStorage.setItem("xmas_username", username);
+  localStorage.setItem(key, username);
   lockUsername(username);
+} else {
+  const saved = localStorage.getItem(key);
+  if (saved) {
+    username = saved;
+    lockUsername(username);
+  } else {
+    usernameInput.value = "";
+    usernameInput.style.display = "inline-block";
+    saveUsernameBtn.style.display = "inline-block";
+    usernameDisplay.style.display = "none";
+  }
 }
         } else {
           alert("Wallet connect gagal");
@@ -824,7 +838,7 @@ if (isProUser) {
 
       try {
         username = name;
-        localStorage.setItem("xmas_username", username);
+        localStorage.setItem(usernameKey(account), username);
 
         const { encodeFunctionData } = window.viem;
         const data = encodeFunctionData({
