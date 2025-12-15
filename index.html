@@ -1028,9 +1028,26 @@ document.getElementById("save-settings").onclick = () => {
     Number(document.getElementById("set-interval").value);
 
   localStorage.setItem("xmas_settings", JSON.stringify(gameSettings));
-  alert("Settings saved");
+  document.getElementById("settings-box").style.display = "none";
+alert("Settings saved ✅");
 };
+// ===== OPEN / CLOSE PRO SETTINGS =====
+document.getElementById("open-settings").onclick = () => {
+  if (!isProUser) {
+    alert("PRO only");
+    return;
+  }
 
+  const box = document.getElementById("settings-box");
+  const isOpen = box.style.display === "block";
+
+  box.style.display = isOpen ? "none" : "block";
+
+  // sync slider dengan nilai aktif
+  document.getElementById("set-speed").value = gameSettings.pipeSpeed;
+  document.getElementById("set-gap").value = gameSettings.pipeGap;
+  document.getElementById("set-interval").value = gameSettings.pipeInterval;
+};
 // ===== UNLOCK PRO BUTTON =====
 document.getElementById("unlock-pro").onclick = async () => {
   if (!walletConnected) {
