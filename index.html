@@ -218,6 +218,57 @@
   <div id="copyright">
     © 2024 Xmas Flappy Reindeer — deployed by @hc7690 (Discord)
   </div>
+<!-- ===== PRO CONFIRM MODAL ===== -->
+<div id="pro-modal" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.7);
+  z-index:999;
+  align-items:center;
+  justify-content:center;
+">
+  <div style="
+    background:#0f172a;
+    color:white;
+    padding:18px;
+    border-radius:12px;
+    width:90%;
+    max-width:360px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.5);
+  ">
+    <h3 style="margin-bottom:10px;color:#facc15;">
+      🚀 Unlock PRO
+    </h3>
+
+    <ul style="font-size:14px;margin-bottom:12px;">
+      <li>⚡ Custom speed & pipe settings</li>
+      <li>🎮 Difficulty control</li>
+      <li>💾 Saved settings</li>
+    </ul>
+
+    <p style="font-size:13px;color:#f87171;margin-bottom:10px;">
+      ⚠️ PRO unlock requires a one-time on-chain transaction fee.
+    </p>
+
+    <label style="font-size:13px;display:flex;gap:8px;margin-bottom:12px;">
+      <input type="checkbox" id="pro-agree">
+      I understand and agree to pay the transaction fee
+    </label>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button id="pro-cancel" style="background:#334155;">
+        Cancel
+      </button>
+      <button id="pro-confirm" disabled style="
+        background:#22c55e;
+        opacity:0.5;
+      ">
+        Confirm
+      </button>
+    </div>
+  </div>
+</div>
 
   <script type="module">
 
@@ -339,6 +390,59 @@ function setLobbyConnected() {
   document.getElementById("pro-controls").style.display = "block";
   document.getElementById("toggle-lb").style.display = "inline-block";
 }
+
+const proModal = document.getElementById("pro-modal");
+const proAgree = document.getElementById("pro-agree");
+const proConfirm = document.getElementById("pro-confirm");
+const proCancel = document.getElementById("pro-cancel");
+
+proConfirm.onclick = async () => {
+  try {
+    closeProModal();
+
+    const { encodeFunctionData } = window.viem;
+
+    const data = encodeFunctionData({
+      abi: PRO_ABI,
+      functionName: "buyPro",
+    });
+
+    await window.ethereum.request({
+      method: "eth_sendTransaction",
+      params: [{
+        from: account,
+        to: PRO_CONTRACT,
+        data,
+        value: "0x4563918244F40000" // 5 SOMI
+      }]
+    });
+
+    alert("Tx sent 🚀 Menunggu konfirmasi...");
+  } catch (e) {
+    alert("Transaksi dibatalkan");
+  }
+};
+
+// buka modal
+function openProModal() {
+  proModal.style.display = "flex";
+  proAgree.checked = false;
+  proConfirm.disabled = true;
+  proConfirm.style.opacity = "0.5";
+}
+
+// tutup modal
+function closeProModal() {
+  proModal.style.display = "none";
+}
+
+// enable confirm jika setuju
+proAgree.onchange = () => {
+  proConfirm.disabled = !proAgree.checked;
+  proConfirm.style.opacity = proAgree.checked ? "1" : "0.5";
+};
+
+proCancel.onclick = closeProModal;
 
     // ======= GAME STATE =======
     let state = "idle"; // idle, countdown, playing, gameover
@@ -1073,6 +1177,7 @@ document.getElementById("open-settings").onclick = () => {
   document.getElementById("set-gap").value = gameSettings.pipeGap;
   document.getElementById("set-interval").value = gameSettings.pipeInterval;
 };
+
 // ===== UNLOCK PRO BUTTON =====
 document.getElementById("unlock-pro").onclick = async () => {
   if (!walletConnected) {
@@ -1080,51 +1185,8 @@ document.getElementById("unlock-pro").onclick = async () => {
     return;
   }
 
-  try {
-    const { encodeFunctionData } = window.viem;
-
-    // encode function buyPro()
-    const data = encodeFunctionData({
-      abi: PRO_ABI,
-      functionName: "buyPro",
-    });
-
-    const txHash = await window.ethereum.request({
-      method: "eth_sendTransaction",
-      params: [{
-        from: account,
-        to: PRO_CONTRACT,
-        data,
-        value: "0x4563918244F40000" // 5 SOMI
-      }]
-    });
-
-    alert("Tx sent 🚀 Menunggu konfirmasi...");
-
-    // recheck status setelah tx
-    setTimeout(async () => {
-      isProUser = await publicClient.readContract({
-        address: PRO_CONTRACT,
-        abi: PRO_ABI,
-        functionName: "isPro",
-        args: [account],
-      });
-
-      console.log("Is PRO user:", isProUser);
-
-      if (isProUser) {
-        document.getElementById("open-settings").style.display = "inline-block";
-        document.getElementById("unlock-pro").style.display = "none";
-        alert("PRO aktif ✅");
-      } else {
-        alert("Tx sukses tapi PRO belum kebaca, refresh halaman");
-      }
-    }, 4000);
-
-  } catch (e) {
-    console.error(e);
-    alert("Unlock PRO gagal: " + e.message);
-  }
+  // ❌ JANGAN ADA TX DI SINI
+  openProModal(); // ✅ CUMA INI
 };
 
 gameLoop();
