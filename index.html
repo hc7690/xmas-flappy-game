@@ -355,6 +355,16 @@ if (username) {
     const PIPE_GAP = 220;
     const PIPE_INTERVAL = 160;
 
+// ===== PRO GAME SETTINGS (LOCAL) =====
+let gameSettings = {
+  pipeSpeed: PIPE_SPEED,
+  pipeGap: PIPE_GAP,
+  pipeInterval: PIPE_INTERVAL,
+};
+
+const saved = localStorage.getItem("xmas_settings");
+if (saved) gameSettings = JSON.parse(saved);
+
     // ==== IMAGE & SOUND ====
     const santaImg = new Image();
     santaImg.src = "santa.png";
@@ -629,18 +639,18 @@ if (username) {
 
       drawSantaImg(bird.x, bird.y);
 
-      if (frame % PIPE_INTERVAL === 0) {
+      if (frame % gameSettings.pipeInterval === 0) {
         const gapTop = 80 + Math.random() * 210;
         pipes.push({
           x: 410,
           top: gapTop,
-          bottom: 600 - gapTop - PIPE_GAP,
+          bottom: 600 - gapTop - gameSettings.pipeGap,
           passed: false,
         });
       }
 
       pipes = pipes.filter((p) => {
-        p.x -= PIPE_SPEED;
+        p.x -= gameSettings.pipeSpeed;
 
         if (p.x < -70) return false;
 
@@ -989,6 +999,23 @@ lockUsername(username);
     }
 
     submitBtn.onclick = submitScoreToChain;
+
+// ===== SAVE PRO SETTINGS =====
+document.getElementById("save-settings").onclick = () => {
+  if (!isProUser) return alert("PRO only");
+
+  gameSettings.pipeSpeed =
+    Number(document.getElementById("set-speed").value);
+
+  gameSettings.pipeGap =
+    Number(document.getElementById("set-gap").value);
+
+  gameSettings.pipeInterval =
+    Number(document.getElementById("set-interval").value);
+
+  localStorage.setItem("xmas_settings", JSON.stringify(gameSettings));
+  alert("Settings saved");
+};
 
 // ===== UNLOCK PRO BUTTON =====
 document.getElementById("unlock-pro").onclick = async () => {
