@@ -202,7 +202,7 @@
     <button id="toggle-lb">Top 10 Flyers</button>
   </div>
   <div id="leaderboard">
-  <h3>Top 10 Flyers</h3>
+  <h3 id="lb-title">Top 10 Flyers</h3>
 
   <button id="toggle-full-lb"
           style="display:none;margin-bottom:8px;width:100%;">
@@ -412,24 +412,41 @@ proConfirm.onclick = async () => {
   try {
     closeProModal();
 
-    const { encodeFunctionData } = window.viem;
-
-    const data = encodeFunctionData({
+    const data = window.viem.encodeFunctionData({
       abi: PRO_ABI,
       functionName: "buyPro",
     });
 
-    await window.ethereum.request({
+    const txHash = await window.ethereum.request({
       method: "eth_sendTransaction",
       params: [{
         from: account,
         to: PRO_CONTRACT,
         data,
-        value: "0x4563918244F40000" // 5 SOMI
+        value: "0x4563918244F40000"
       }]
     });
 
-    alert("Tx sent 🚀 Menunggu konfirmasi...");
+    alert("Tx sent 🚀 Waiting confirmation...");
+
+    // ⏳ tunggu sebentar (RPC lag)
+    setTimeout(async () => {
+      isProUser = await publicClient.readContract({
+        address: PRO_CONTRACT,
+        abi: PRO_ABI,
+        functionName: "isPro",
+        args: [account],
+      });
+
+      if (isProUser) {
+        applyGameSettingsByRole();
+
+        document.getElementById("open-settings").style.display = "inline-block";
+        document.getElementById("unlock-pro").style.display = "none";
+
+        alert("🎉 PRO unlocked! Settings enabled.");
+      }
+    }, 4000); // 4 detik aman
   } catch (e) {
     alert("Transaksi dibatalkan");
   }
@@ -944,6 +961,12 @@ document.getElementById("toggle-full-lb").onclick = () => {
 
   document.getElementById("toggle-full-lb").textContent =
     showFullLeaderboard ? "Show Top 10 Only" : "View Full Leaderboard";
+
+document.getElementById("lb-title").textContent =
+  showFullLeaderboard ? "🏆 Full Leaderboard" : "Top 10 Flyers";
+
+document.getElementById("toggle-lb").textContent =
+  showFullLeaderboard ? "🏆 Full Leaderboard" : "Top 10 Flyers";
 
   renderLeaderboard(leaderboardData);
 };
