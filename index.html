@@ -640,7 +640,12 @@ if (saved) gameSettings = JSON.parse(saved);
 
       drawSantaImg(bird.x, bird.y);
 
-      if (frame % gameSettings.pipeInterval === 0) {
+      const effectiveInterval = Math.max(
+  50,
+  Math.round(gameSettings.pipeInterval / gameSettings.pipeSpeed)
+);
+
+if (frame % effectiveInterval === 0) {
         const gapTop = 80 + Math.random() * 210;
         pipes.push({
           x: 410,
