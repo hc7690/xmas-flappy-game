@@ -221,10 +221,7 @@
     <canvas id="game" width="400" height="600"></canvas>
   </div>
 
-  <div id="leaderboard">
-    <h3>Top 10 Flyers</h3>
-    <ol id="lb-list"></ol>
-  </div>
+  
 
   <div id="copyright">
     © 2024 Xmas Flappy Reindeer — deployed by @hc7690 (Discord)
@@ -551,7 +548,20 @@ let gameSettings = {
 };
 
 const saved = localStorage.getItem("xmas_settings");
-if (saved) gameSettings = JSON.parse(saved);
+if (saved) {
+  gameSettings = JSON.parse(saved);
+}
+
+// ===== APPLY SETTINGS BASED ON ROLE =====
+function applyGameSettingsByRole() {
+  if (!isProUser) {
+    // 🔒 NON-PRO → PAKSA DEFAULT
+    gameSettings.pipeSpeed = PIPE_SPEED;
+    gameSettings.pipeGap = PIPE_GAP;
+    gameSettings.pipeInterval = PIPE_INTERVAL;
+  }
+  // PRO → pakai localStorage
+}
 
     // ==== IMAGE & SOUND ====
     const santaImg = new Image();
@@ -857,14 +867,14 @@ if (frame % effectiveInterval === 0) {
         if (
           bird.x - 40 < p.x + 65 &&
           bird.x + 40 > p.x &&
-          (bird.y - 30 < p.top || bird.y + 30 > p.top + PIPE_GAP)
+          (bird.y - 30 < p.top || bird.y + 30 > p.top + gameSettings.pipeGap)
         ) {
           state = "gameover";
           playSafe(hitSound);
         }
 
         drawCandyPipe(p.x, 0, 65, p.top);
-        drawCandyPipe(p.x, p.top + PIPE_GAP, 65, p.bottom);
+        drawCandyPipe(p.x, p.top + gameSettings.pipeGap, 65, p.bottom);
 
         return true;
       });
@@ -891,6 +901,7 @@ if (frame % effectiveInterval === 0) {
       bird.vy = 0;
       pipes = [];
       snowflakes = [];
+      frame = 0;
       score = 0;
       document.getElementById("score").textContent = "0";
 
@@ -964,6 +975,9 @@ isProUser = await publicClient.readContract({
   args: [account],
 });
 console.log("Is PRO user:", isProUser);
+
+applyGameSettingsByRole();
+
 if (isProUser) {
   document.getElementById("open-settings").style.display = "inline-block";
   document.getElementById("unlock-pro").style.display = "none";
@@ -1090,7 +1104,7 @@ lockUsername(username);
       }
 
       username = name;
-      localStorage.setItem("xmas_username", username);
+      localStorage.setItem(usernameKey(account), username);
 
       try {
         const onChainName = await publicClient.readContract({
