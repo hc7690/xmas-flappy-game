@@ -152,8 +152,10 @@
 <body>
   <div id="ui">
   <button id="connect">Connect Wallet</button>
+  <div id="score-box">
   <h2>Score: <span id="score">0</span></h2>
   <h3>Best: <span id="best">0</span></h3>
+  </div>
 
   <!-- username mini box (sekarang di dalam #ui) -->
   <div id="username-box">
@@ -388,6 +390,8 @@ function setLobbyDisconnected() {
   document.getElementById("pro-controls").style.display = "none";
   document.getElementById("toggle-lb").style.display = "none";
   document.getElementById("leaderboard").style.display = "none";
+
+document.getElementById("score-box").style.display = "none";
 }
 
 // panggil sekali di awal
@@ -398,6 +402,8 @@ function setLobbyConnected() {
   document.getElementById("username-box").style.display = "flex";
   document.getElementById("pro-controls").style.display = "block";
   document.getElementById("toggle-lb").style.display = "inline-block";
+
+document.getElementById("score-box").style.display = "block";
 }
 
 const proModal = document.getElementById("pro-modal");
