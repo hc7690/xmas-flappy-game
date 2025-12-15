@@ -1033,16 +1033,56 @@ document.getElementById("save-settings").onclick = () => {
 
 // ===== UNLOCK PRO BUTTON =====
 document.getElementById("unlock-pro").onclick = async () => {
-  await window.ethereum.request({
-    method: "eth_sendTransaction",
-    params: [{
-      from: account,
-      to: PRO_CONTRACT,
-      value: "0x4563918244F40000"
-    }]
-  });
+  if (!walletConnected) {
+    alert("Connect wallet dulu");
+    return;
+  }
 
-  alert("PRO unlocked 🎉 Refresh page");
+  try {
+    const { encodeFunctionData } = window.viem;
+
+    // encode function buyPro()
+    const data = encodeFunctionData({
+      abi: PRO_ABI,
+      functionName: "buyPro",
+    });
+
+    const txHash = await window.ethereum.request({
+      method: "eth_sendTransaction",
+      params: [{
+        from: account,
+        to: PRO_CONTRACT,
+        data,
+        value: "0x4563918244F40000" // 5 SOMI
+      }]
+    });
+
+    alert("Tx sent 🚀 Menunggu konfirmasi...");
+
+    // recheck status setelah tx
+    setTimeout(async () => {
+      isProUser = await publicClient.readContract({
+        address: PRO_CONTRACT,
+        abi: PRO_ABI,
+        functionName: "isPro",
+        args: [account],
+      });
+
+      console.log("Is PRO user:", isProUser);
+
+      if (isProUser) {
+        document.getElementById("open-settings").style.display = "inline-block";
+        document.getElementById("unlock-pro").style.display = "none";
+        alert("PRO aktif ✅");
+      } else {
+        alert("Tx sukses tapi PRO belum kebaca, refresh halaman");
+      }
+    }, 4000);
+
+  } catch (e) {
+    console.error(e);
+    alert("Unlock PRO gagal: " + e.message);
+  }
 };
 
 gameLoop();
