@@ -164,6 +164,36 @@
   <input id="username-input" placeholder="username" maxlength="20" />
   <button id="save-username">Save</button>
 </div>
+
+<!-- ===== PRO SETTINGS UI (TARUH DI SINI) ===== -->
+<div id="pro-controls" style="margin-top:6px;">
+  <button id="open-settings" style="display:none;">⚙️ Settings</button>
+  <button id="unlock-pro" style="display:none;">Unlock PRO</button>
+</div>
+
+<div id="settings-box"
+     style="display:none;
+            background:rgba(0,0,0,0.8);
+            padding:10px;
+            border-radius:10px;
+            margin-top:6px;">
+  <label>
+    Speed
+    <input type="range" min="0.6" max="2.0" step="0.1" id="set-speed">
+  </label><br>
+
+  <label>
+    Pipe Gap
+    <input type="range" min="180" max="260" step="10" id="set-gap">
+  </label><br>
+
+  <label>
+    Pipe Distance
+    <input type="range" min="140" max="220" step="10" id="set-interval">
+  </label><br>
+
+  <button id="save-settings">Save</button>
+</div>
 </div>
 
   <div id="top-buttons">
