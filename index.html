@@ -749,6 +749,13 @@ isProUser = await publicClient.readContract({
   args: [account],
 });
 console.log("Is PRO user:", isProUser);
+if (isProUser) {
+  document.getElementById("open-settings").style.display = "inline-block";
+  document.getElementById("unlock-pro").style.display = "none";
+} else {
+  document.getElementById("unlock-pro").style.display = "inline-block";
+  document.getElementById("open-settings").style.display = "none";
+}
 
         if (account && account.length > 10) {
           walletConnected = true;
@@ -983,8 +990,21 @@ lockUsername(username);
 
     submitBtn.onclick = submitScoreToChain;
 
-    // mulai loop
-    gameLoop();
+// ===== UNLOCK PRO BUTTON =====
+document.getElementById("unlock-pro").onclick = async () => {
+  await window.ethereum.request({
+    method: "eth_sendTransaction",
+    params: [{
+      from: account,
+      to: PRO_CONTRACT,
+      value: "0x4563918244F40000"
+    }]
+  });
+
+  alert("PRO unlocked 🎉 Refresh page");
+};
+
+gameLoop();
   </script>
 </body>
 </html>
