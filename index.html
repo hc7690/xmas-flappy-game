@@ -190,6 +190,33 @@
   </div>
 
   <script type="module">
+
+// ===== PRO ACCESS CONTRACT =====
+const PRO_CONTRACT = "0x38Bc7E09B7Fe5eAC88db60997393c5476BE9dEa1";
+
+const PRO_ABI = [
+  {
+    inputs: [{ internalType: "address", name: "", type: "address" }],
+    name: "isPro",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "buyPro",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "withdraw",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+];
     // >>>>>>> GANTI DENGAN ADDRESS KONTRAK V2 BARU <<<<<<
     const CONTRACT_ADDRESS = "0x4035E22038e7CAEe45B6524d969B30B11326A3d1";
 
