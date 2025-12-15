@@ -199,7 +199,9 @@
   <div id="top-buttons">
     <button id="toggle-lb">Top 10 Flyers</button>
   </div>
-
+  <button id="toggle-full-lb" style="display:none;">
+  View Full Leaderboard
+  </button>
   <!-- tombol ketika idle / game over -->
   <div id="gameover-buttons">
     <button id="submit-score">Submit Score</button>
@@ -462,6 +464,55 @@ proCancel.onclick = closeProModal;
     let isProUser = false; // status PRO user
 
     let username = "";
+    let leaderboardData = [];
+    let showFullLeaderboard = false;
+
+function renderLeaderboard(entries) {
+  const list = document.getElementById("lb-list");
+  list.innerHTML = "";
+
+  if (!entries || entries.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = "No scores on chain yet.";
+    list.appendChild(li);
+    return;
+  }
+
+  const limit = showFullLeaderboard ? entries.length : 10;
+
+  entries.slice(0, limit).forEach((p, i) => {
+    const addr = String(p.player ?? p[0]);
+    const pts = Number(p.score ?? p[1]);
+    const uname = (p.username ?? p[3]) || "";
+    const shortAddr = addr.slice(0, 6) + "..." + addr.slice(-4);
+    const displayName = uname && String(uname).length ? uname : shortAddr;
+
+    const li = document.createElement("li");
+    li.textContent = `#${i + 1} ${displayName} — ${pts} pts`;
+    list.appendChild(li);
+  });
+}
+
+async function loadLeaderboard() {
+  if (!publicClient) return;
+
+  try {
+    leaderboardData = await publicClient.readContract({
+      address: CONTRACT_ADDRESS,
+      abi: ABI,
+      functionName: "getLeaderboard",
+    });
+
+    renderLeaderboard(leaderboardData);
+  } catch (e) {
+    console.error("loadLeaderboard error", e);
+    const list = document.getElementById("lb-list");
+    list.innerHTML = "";
+    const li = document.createElement("li");
+    li.textContent = "Failed to load leaderboard.";
+    list.appendChild(li);
+  }
+}
 
     const somnia = {
       id: 5031n,
@@ -853,13 +904,25 @@ if (frame % effectiveInterval === 0) {
 
     // ===== WALLET & USERNAME =====
     document.getElementById("toggle-lb").onclick = () => {
-      const box = document.getElementById("leaderboard");
-      const willShow =
-        box.style.display === "none" || box.style.display === "";
-      box.style.display = willShow ? "block" : "none";
-      if (willShow) loadLeaderboard();
-    };
+  const box = document.getElementById("leaderboard");
+  const fullBtn = document.getElementById("toggle-full-lb");
 
+  const willShow =
+    box.style.display === "none" || box.style.display === "";
+
+  box.style.display = willShow ? "block" : "none";
+  fullBtn.style.display = willShow ? "inline-block" : "none";
+
+  if (willShow) loadLeaderboard();
+};
+document.getElementById("toggle-full-lb").onclick = () => {
+  showFullLeaderboard = !showFullLeaderboard;
+
+  document.getElementById("toggle-full-lb").textContent =
+    showFullLeaderboard ? "Show Top 10 Only" : "View Full Leaderboard";
+
+  renderLeaderboard(leaderboardData);
+};
     document.getElementById("connect").onclick = async () => {
       if (!window.viem) return alert("Loading... coba lagi");
       const { createWalletClient, custom, createPublicClient, http } = window.viem;
@@ -1055,45 +1118,7 @@ lockUsername(username);
       }
     }
 
-    async function loadLeaderboard() {
-      if (!publicClient) return;
-      try {
-        const lb = await publicClient.readContract({
-          address: CONTRACT_ADDRESS,
-          abi: ABI,
-          functionName: "getLeaderboard",
-        });
-
-        const list = document.getElementById("lb-list");
-        list.innerHTML = "";
-
-        if (!lb || lb.length === 0) {
-          const li = document.createElement("li");
-          li.textContent = "No scores on chain yet.";
-          list.appendChild(li);
-          return;
-        }
-
-        lb.slice(0, 10).forEach((p, i) => {
-          const addr = String(p.player ?? p[0]);
-          const pts = Number(p.score ?? p[1]);
-          const uname = (p.username ?? p[3]) || "";
-          const shortAddr = addr.slice(0, 6) + "..." + addr.slice(-4);
-          const displayName = uname && String(uname).length ? uname : shortAddr;
-
-          const li = document.createElement("li");
-          li.textContent = `${displayName} — ${pts} pts`;
-          list.appendChild(li);
-        });
-      } catch (e) {
-        console.error("loadLeaderboard error", e);
-        const list = document.getElementById("lb-list");
-        list.innerHTML = "";
-        const li = document.createElement("li");
-        li.textContent = "Failed to load leaderboard.";
-        list.appendChild(li);
-      }
-    }
+    
 
     async function submitScoreToChain() {
       if (!walletConnected || !window.ethereum) {
