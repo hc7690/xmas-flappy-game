@@ -160,7 +160,7 @@
   <!-- username mini box (sekarang di dalam #ui) -->
   <div id="username-box">
   <span id="username-display" style="display:none;font-size:13px;">
-    Hallo, <b id="username-text"></b>👋
+    👋Hallo, <b id="username-text"></b>
   </span>
 
   <input id="username-input" placeholder="username" maxlength="20" />
@@ -199,10 +199,10 @@
 </div>
 
   <div id="top-buttons">
-    <button id="toggle-lb">🔥Top 10 Flyers</button>
+    <button id="toggle-lb">Top 10 Flyers</button>
   </div>
   <div id="leaderboard">
-  <h3 id="lb-title">🔥Top 10 Flyers</h3>
+  <h3 id="lb-title">Top 10 Flyers</h3>
 
   <button id="toggle-full-lb"
           style="display:none;margin-bottom:8px;width:100%;">
@@ -375,7 +375,7 @@ const usernameDisplay = document.getElementById("username-display");
 const usernameText = document.getElementById("username-text");
 
 function lockUsername(name) {
-  usernameText.textContent = name;
+  usernameText.textContent = isProUser ? `${name} ⭐` : name;
   usernameDisplay.style.display = "inline";
   usernameInput.style.display = "none";
   saveUsernameBtn.style.display = "none";
