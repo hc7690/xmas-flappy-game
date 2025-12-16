@@ -147,6 +147,24 @@
       #canvas-wrapper{ padding-top:90px; padding-bottom:80px; }
       button{ font-size:15px; }
     }
+
+
+
+/* SCROLL AREA */
+#lb-list {
+  max-height: 320px;       /* ⬅ tinggi scroll */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* scrollbar lebih halus (optional) */
+#lb-list::-webkit-scrollbar {
+  width: 6px;
+}
+#lb-list::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.25);
+  border-radius: 6px;
+}
   </style>
 </head>
 <body>
@@ -201,8 +219,24 @@
   <div id="top-buttons">
     <button id="toggle-lb">Top 10 Flyers</button>
   </div>
-  <div id="leaderboard">
+ <div id="leaderboard">
   <h3 id="lb-title">Top 10 Flyers</h3>
+
+  <!-- YOUR RANK BOX -->
+  <div id="my-rank-box" style="
+    background:rgba(255,215,0,0.12);
+    border:1px solid rgba(255,215,0,0.35);
+    border-radius:8px;
+    padding:8px;
+    font-size:13px;
+    margin-bottom:8px;
+    display:none;
+  ">
+    <div style="font-size:11px;color:#facc15;margin-bottom:2px;">
+      🏅 Your Rank
+    </div>
+    <div id="my-rank-text" style="font-weight:bold;"></div>
+  </div>
 
   <button id="toggle-full-lb"
           style="display:none;margin-bottom:8px;width:100%;">
@@ -211,6 +245,7 @@
 
   <ol id="lb-list"></ol>
 </div>
+
   <!-- tombol ketika idle / game over -->
   <div id="gameover-buttons">
     <button id="submit-score">Submit Score</button>
@@ -394,6 +429,12 @@ document.getElementById("score-box").style.display = "none";
 // panggil sekali di awal
 setLobbyDisconnected();
 
+document.getElementById("leaderboard").addEventListener(
+  "touchmove",
+  (e) => e.stopPropagation(),
+  { passive: false }
+);
+
 // ===== LOBBY SETELAH CONNECT WALLET =====
 function setLobbyConnected() {
   document.getElementById("username-box").style.display = "flex";
@@ -494,13 +535,43 @@ proCancel.onclick = closeProModal;
     let leaderboardData = [];
     let showFullLeaderboard = false;
 
+function updateMyRank(entries) {
+  const box = document.getElementById("my-rank-box");
+  const text = document.getElementById("my-rank-text");
+
+  if (!walletConnected || !account || !entries || entries.length === 0) {
+    box.style.display = "none";
+    return;
+  }
+
+  const addr = account.toLowerCase();
+  const index = entries.findIndex(
+    (p) => String(p.player ?? p[0]).toLowerCase() === addr
+  );
+
+  box.style.display = "block";
+
+  if (index === -1) {
+    text.textContent = "Not ranked yet";
+    return;
+  }
+
+  const p = entries[index];
+  const pts = Number(p.score ?? p[1]);
+  const uname = (p.username ?? p[3]) || "";
+  const shortAddr = addr.slice(0, 6) + "..." + addr.slice(-4);
+  const displayName = uname && uname.length ? uname : shortAddr;
+
+  text.textContent = `#${index + 1} ${displayName} — ${pts} pts`;
+}
+
 function renderLeaderboard(entries) {
   const list = document.getElementById("lb-list");
   list.innerHTML = "";
 
   if (!entries || entries.length === 0) {
     const li = document.createElement("li");
-    li.textContent = "No scores on chain yet.";
+    li.textContent = "No scores yet.";
     list.appendChild(li);
     return;
   }
@@ -512,10 +583,12 @@ function renderLeaderboard(entries) {
     const pts = Number(p.score ?? p[1]);
     const uname = (p.username ?? p[3]) || "";
     const shortAddr = addr.slice(0, 6) + "..." + addr.slice(-4);
-    const displayName = uname && String(uname).length ? uname : shortAddr;
+    const displayName = uname || shortAddr;
+
+    const rank = i + 1; // ✅ GLOBAL RANK
 
     const li = document.createElement("li");
-    li.textContent = `#${i + 1} ${displayName} — ${pts} pts`;
+    li.textContent = `#${rank} ${displayName} — ${pts} pts`;
     list.appendChild(li);
   });
 }
@@ -530,6 +603,7 @@ async function loadLeaderboard() {
       functionName: "getLeaderboard",
     });
 
+    updateMyRank(leaderboardData);   // 👈 TAMBAH INI
     renderLeaderboard(leaderboardData);
   } catch (e) {
     console.error("loadLeaderboard error", e);
@@ -551,10 +625,10 @@ async function loadLeaderboard() {
       },
     };
 
-    const PIPE_SPEED = 1.5;
+    const PIPE_SPEED = 1.0;
     const GRAVITY = 0.28;
     const FLAP_POWER = -7.8;
-    const PIPE_GAP = 220;
+    const PIPE_GAP = 200;
     const PIPE_INTERVAL = 160;
 
 // ===== PRO GAME SETTINGS (LOCAL) =====
@@ -967,6 +1041,8 @@ document.getElementById("lb-title").textContent =
 
 document.getElementById("toggle-lb").textContent =
   showFullLeaderboard ? "🏆 Full Leaderboard" : "🔥Top 10 Flyers";
+
+
 
   renderLeaderboard(leaderboardData);
 };
